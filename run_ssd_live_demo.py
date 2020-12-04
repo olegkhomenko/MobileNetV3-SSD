@@ -1,15 +1,21 @@
-from vision.ssd.vgg_ssd import create_vgg_ssd, create_vgg_ssd_predictor
-from vision.ssd.mobilenetv1_ssd import create_mobilenetv1_ssd, create_mobilenetv1_ssd_predictor
-from vision.ssd.mobilenetv1_ssd_lite import create_mobilenetv1_ssd_lite, create_mobilenetv1_ssd_lite_predictor
-from vision.ssd.squeezenet_ssd_lite import create_squeezenet_ssd_lite, create_squeezenet_ssd_lite_predictor
-from vision.ssd.mobilenet_v2_ssd_lite import create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor
-from vision.utils.misc import Timer
-import cv2
 import sys
 
+import cv2
+import numpy as np
+import torch
 
-from vision.ssd.mobilenet_v3_ssd_lite import create_mobilenetv3_ssd_lite,create_mobilenetv3_ssd_lite_predictor
-
+from vision.ssd.mobilenet_v2_ssd_lite import (
+    create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor)
+from vision.ssd.mobilenet_v3_ssd_lite import (
+    create_mobilenetv3_ssd_lite, create_mobilenetv3_ssd_lite_predictor)
+from vision.ssd.mobilenetv1_ssd import (create_mobilenetv1_ssd,
+                                        create_mobilenetv1_ssd_predictor)
+from vision.ssd.mobilenetv1_ssd_lite import (
+    create_mobilenetv1_ssd_lite, create_mobilenetv1_ssd_lite_predictor)
+from vision.ssd.squeezenet_ssd_lite import (
+    create_squeezenet_ssd_lite, create_squeezenet_ssd_lite_predictor)
+from vision.ssd.vgg_ssd import create_vgg_ssd, create_vgg_ssd_predictor
+from vision.utils.misc import Timer
 
 if len(sys.argv) < 4:
     print('Usage: python run_ssd_example.py <net type>  <model path> <label path> [video file]')
@@ -20,10 +26,13 @@ label_path = sys.argv[3]
 
 if len(sys.argv) >= 5:
     cap = cv2.VideoCapture(sys.argv[4])  # capture from file
+    IS_FILE = True
+    print("Capture from file")
 else:
-    cap = cv2.VideoCapture(0)   # capture from camera
-    cap.set(3, 1920)
-    cap.set(4, 1080)
+    cap = cv2.VideoCapture(1)   # capture from camera
+    cap.set(3, 300)
+    cap.set(4, 300)
+    IS_FILE = False
 
 class_names = [name.strip() for name in open(label_path).readlines()]
 num_classes = len(class_names)
@@ -68,14 +77,18 @@ while True:
     ret, orig_image = cap.read()
     if orig_image is None:
         continue
+    print(orig_image.shape)
     image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
     timer.start()
-    boxes, labels, probs = predictor.predict(image, 10, 0.4)
+    boxes, labels, probs = predictor.predict(image, 10, 0.3)
     interval = timer.end()
     print('Time: {:.2f}s, Detect Objects: {:d}.'.format(interval, labels.size(0)))
     for i in range(boxes.size(0)):
         box = boxes[i, :]
         label = f"{class_names[labels[i]]}: {probs[i]:.2f}"
+        if isinstance(box, torch.Tensor):
+            box = np.array(box).astype(int)
+
         cv2.rectangle(orig_image, (box[0], box[1]), (box[2], box[3]), (255, 255, 0), 4)
 
         cv2.putText(orig_image, label,
@@ -87,5 +100,12 @@ while True:
     cv2.imshow('annotated', orig_image)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+    if IS_FILE:
+        FNAME = './output.jpg'
+        print("Result is saved to: ", FNAME)
+        cv2.imwrite(FNAME, orig_image)
+        break
+
 cap.release()
 cv2.destroyAllWindows()

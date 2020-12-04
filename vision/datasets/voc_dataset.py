@@ -34,7 +34,7 @@ class VOCDataset:
                     class_string += line.rstrip()
 
             # classes should be a comma separated list
-            
+
             classes = class_string.split(',')
             # prepend BACKGROUND as first class
             classes.insert(0, 'BACKGROUND')
@@ -57,12 +57,18 @@ class VOCDataset:
     def __getitem__(self, index):
         image_id = self.ids[index]
         boxes, labels, is_difficult = self._get_annotation(image_id)
+        # Result:
+        # boxes: array([[ 33.,  10., 447., 292.]], dtype=float32)
+        # labels: array([20])
         if not self.keep_difficult:
             boxes = boxes[is_difficult == 0]
             labels = labels[is_difficult == 0]
         image = self._read_image(image_id)
         if self.transform:
             image, boxes, labels = self.transform(image, boxes, labels)
+            # Result:
+            # boxes: array([[0.07002188, 0.        , 0.97593   , 0.8666667 ]], dtype=float32)
+            # array([20])
         if self.target_transform:
             boxes, labels = self.target_transform(boxes, labels)
         return image, boxes, labels

@@ -1,8 +1,13 @@
-from ..transforms.transforms import *
+import logging
+
+from ..transforms.transforms import (Compose, ConvertFromInts, Expand,
+                                     PhotometricDistort, RandomMirror,
+                                     RandomSampleCrop, Resize, SubtractMeans,
+                                     ToPercentCoords, ToTensor)
 
 
 class TrainAugmentation:
-    def __init__(self, size, mean=0, std=1.0):
+    def __init__(self, size, mean=0, std=1.0, mode=None):
         """
         Args:
             size: the size the of final image.
@@ -10,18 +15,37 @@ class TrainAugmentation:
         """
         self.mean = mean
         self.size = size
-        self.augment = Compose([
-            ConvertFromInts(),
-            PhotometricDistort(),
-            Expand(self.mean),
-            RandomSampleCrop(),
-            RandomMirror(),
-            ToPercentCoords(),
-            Resize(self.size),
-            SubtractMeans(self.mean),
-            lambda img, boxes=None, labels=None: (img / std, boxes, labels),
-            ToTensor(),
-        ])
+
+        if mode is None:
+            logging.info("Using mode with hard augs")
+            self.augment = Compose([
+                ConvertFromInts(),
+                PhotometricDistort(),
+                Expand(self.mean),
+                RandomSampleCrop(),
+                RandomMirror(),
+                ToPercentCoords(),
+                Resize(self.size),
+                SubtractMeans(self.mean),
+                lambda img, boxes=None, labels=None: (img / std, boxes, labels),
+                ToTensor(),
+            ])
+
+        elif mode == 'light':
+            logging.info("Using mode with light augs")
+            self.augment = Compose([
+                ConvertFromInts(),
+                Expand(self.mean),
+                RandomMirror(),
+                ToPercentCoords(),
+                Resize(self.size),
+                SubtractMeans(self.mean),
+                lambda img, boxes=None, labels=None: (img / std, boxes, labels),
+                ToTensor(),
+            ])
+
+        else:
+            raise ValueError(mode)
 
     def __call__(self, img, boxes, labels):
         """
